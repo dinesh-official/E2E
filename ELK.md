@@ -1,6 +1,6 @@
-# 🚀 ELK Stack + Filebeat + NGINX Setup on Ubuntu
+# 📘 ELK Stack + Filebeat + NGINX Setup on Ubuntu
 
-This guide documents step-by-step commands to install and configure the ELK (Elasticsearch, Logstash, Kibana) stack with Filebeat and NGINX as a reverse proxy on Ubuntu 22.04/24.04.
+This README file documents the detailed step-by-step installation and configuration of the **ELK Stack (Elasticsearch, Logstash, Kibana)** with **Filebeat** and **NGINX** as a reverse proxy on **Ubuntu 22.04/24.04**. It is fully optimized for copy-paste and GitHub.
 
 ---
 
@@ -8,10 +8,26 @@ This guide documents step-by-step commands to install and configure the ELK (Ela
 
 ```bash
 curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /usr/share/keyrings/elastic.gpg
+
 echo "deb [signed-by=/usr/share/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
+
 sudo apt update
 sudo apt install elasticsearch -y
+
 sudo nano /etc/elasticsearch/elasticsearch.yml
+```
+
+Edit the file and set:
+
+```yaml
+network.host: localhost
+http.port: 9200
+discovery.type: single-node
+```
+
+Then:
+
+```bash
 sudo systemctl enable elasticsearch
 sudo systemctl start elasticsearch
 curl -X GET "localhost:9200"
@@ -23,6 +39,17 @@ curl -X GET "localhost:9200"
 
 ```bash
 sudo apt install kibana -y
+sudo nano /etc/kibana/kibana.yml
+```
+
+Set the following:
+
+```yaml
+server.host: "localhost"
+elasticsearch.hosts: ["http://localhost:9200"]
+```
+
+```bash
 sudo systemctl enable kibana
 sudo systemctl start kibana
 ```
@@ -34,15 +61,26 @@ sudo systemctl start kibana
 ```bash
 sudo apt install nginx apache2-utils -y
 sudo htpasswd -c /etc/nginx/htpasswd.users kibanaadmin
-sudo nano /etc/nginx/sites-available/your_domain
 ```
 
-Paste the config below (replace `your_domain`):
+To update password:
+
+```bash
+sudo htpasswd /etc/nginx/htpasswd.users newusername
+```
+
+Configure NGINX:
+
+```bash
+sudo nano /etc/nginx/sites-available/kibana
+```
+
+Paste:
 
 ```nginx
 server {
     listen 80;
-    server_name your_domain;
+    server_name your_domain_or_ip;
 
     auth_basic "Restricted Access";
     auth_basic_user_file /etc/nginx/htpasswd.users;
@@ -59,7 +97,7 @@ server {
 ```
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/your_domain /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/kibana /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 sudo ufw allow 'Nginx Full'
@@ -71,10 +109,13 @@ sudo ufw allow 'Nginx Full'
 
 ```bash
 sudo apt install logstash -y
-sudo nano /etc/logstash/conf.d/02-beats-input.conf
 ```
 
-Paste:
+**Input Configuration:**
+
+```bash
+sudo nano /etc/logstash/conf.d/02-beats-input.conf
+```
 
 ```conf
 input {
@@ -84,11 +125,11 @@ input {
 }
 ```
 
+**Output Configuration:**
+
 ```bash
 sudo nano /etc/logstash/conf.d/30-elasticsearch-output.conf
 ```
-
-Paste:
 
 ```conf
 output {
@@ -99,10 +140,13 @@ output {
 }
 ```
 
+**Start Logstash:**
+
 ```bash
 sudo -u logstash /usr/share/logstash/bin/logstash --path.settings /etc/logstash -t
-sudo systemctl start logstash
 sudo systemctl enable logstash
+sudo systemctl start logstash
+sudo ufw allow 5044
 ```
 
 ---
@@ -114,8 +158,28 @@ sudo apt install filebeat -y
 sudo filebeat modules enable system
 sudo filebeat test config
 sudo nano /etc/filebeat/filebeat.yml
-sudo systemctl start filebeat
+```
+
+Update the following:
+
+```yaml
+output.logstash:
+  hosts: ["localhost:5044"]
+
+setup.kibana:
+  host: "localhost:5601"
+```
+
+Then:
+
+```bash
 sudo systemctl enable filebeat
+sudo systemctl start filebeat
+```
+
+**Optional Dashboards Setup:**
+
+```bash
 sudo filebeat setup --pipelines --modules system
 sudo filebeat setup -E output.logstash.enabled=false -E 'output.elasticsearch.hosts=["localhost:9200"]'
 sudo filebeat setup -E output.logstash.enabled=false -E output.elasticsearch.hosts=['localhost:9200'] -E setup.kibana.host=localhost:5601
@@ -129,9 +193,17 @@ sudo filebeat setup -E output.logstash.enabled=false -E output.elasticsearch.hos
 curl -XGET 'http://localhost:9200/filebeat-*/_search?pretty'
 ```
 
+Open Kibana in browser:
+
+```
+http://your_domain_or_ip
+```
+
+Login with Kibana user created in htpasswd.
+
 ---
 
-## 🔁 Log Flow Diagram
+## 🔀 Log Flow Diagram
 
 ```
 System Logs → Filebeat → Logstash (localhost:5044) → Elasticsearch → Kibana (via NGINX)
@@ -139,7 +211,16 @@ System Logs → Filebeat → Logstash (localhost:5044) → Elasticsearch → Kib
 
 ---
 
-## 📝 Optional: View Auth File
+## 📂 Network Address Translation (NAT) Notes
+
+- Expose NGINX (port 80) publicly for Kibana.
+- Allow port 5044 for Filebeat input.
+- Use firewall rules to restrict access.
+- Consider using SSL and domain-based access for production.
+
+---
+
+## 📝 View Kibana Auth File
 
 ```bash
 cat /etc/nginx/htpasswd.users
@@ -147,4 +228,31 @@ cat /etc/nginx/htpasswd.users
 
 ---
 
-> ✅ This guide supports ELK stack v7.x on Ubuntu 22.04/24.04.
+## 📘 GitHub Project Summary
+
+```markdown
+# ELK Stack with Filebeat & NGINX
+
+Install and configure ELK stack with Filebeat and secure Kibana via NGINX.
+
+## Components:
+- Elasticsearch
+- Logstash
+- Kibana
+- Filebeat
+- NGINX with HTTP Auth
+
+## Access
+- Kibana: http://your_domain_or_ip
+- User: kibanaadmin
+
+## Flow
+System Logs → Filebeat → Logstash → Elasticsearch → Kibana
+
+## License
+MIT
+```
+
+---
+
+> 🟢 All commands are ready for one-click copy-paste.
