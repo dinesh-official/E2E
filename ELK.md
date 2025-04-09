@@ -14,7 +14,7 @@ echo "deb [signed-by=/usr/share/keyrings/elastic.gpg] https://artifacts.elastic.
 sudo apt update
 sudo apt install elasticsearch -y
 
-sudo nano /etc/elasticsearch/elasticsearch.yml
+echo "network.host: localhost" | sudo tee -a /etc/elasticsearch/elasticsearch.yml
 ```
 
 Edit the file and set:
