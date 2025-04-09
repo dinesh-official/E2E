@@ -13,16 +13,14 @@ echo "deb [signed-by=/usr/share/keyrings/elastic.gpg] https://artifacts.elastic.
 
 sudo apt update
 sudo apt install elasticsearch -y
-
-echo "network.host: localhost" | sudo tee -a /etc/elasticsearch/elasticsearch.yml
 ```
 
 Edit the file and set:
 
 ```yaml
-network.host: localhost
-http.port: 9200
-discovery.type: single-node
+
+echo -e "network.host: localhost\nhttp.port: 9200\ndiscovery.type: single-node" | sudo tee -a /etc/elasticsearch/elasticsearch.yml
+
 ```
 
 Then:
